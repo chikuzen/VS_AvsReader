@@ -17,7 +17,7 @@ debug: vsavsreader_dbg.dll
 vsavsreader.dll: vsavsreader.o
 	$(LD) $(LDFLAGS) $(XLDFLAGS) -o $@ $^
 
-vsavsreader_dbg.dll: vsavareader.d
+vsavsreader_dbg.dll: vsavsreader.d
 	$(LD) $(DLDFLAGS) -o $@ $^
 
 vsavsreader.o: vsavsreader.c avisynth_c.h VapourSynth.h
