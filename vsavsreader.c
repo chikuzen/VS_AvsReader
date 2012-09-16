@@ -21,6 +21,7 @@
 */
 
 
+#include <stdio.h>
 #include <string.h>
 #include <stdint.h>
 #include <windows.h>
@@ -28,13 +29,12 @@
 #define AVSC_NO_DECLSPEC
 #undef EXTERN_C
 #include "avisynth_c.h"
+#define AVS_INTERFACE_25 2
 
 #include "VapourSynth.h"
 
 
 #define AVSC_DECLARE_FUNC(name) name##_func name
-#define AVS_INTERFACE_25 2
-
 typedef struct {
     VSVideoInfo vs_vi;
     int avs_version;
@@ -120,13 +120,6 @@ static int get_avisynth_version(avsr_hnd_t *ah)
 }
 
 
-static AVS_Value import_avs(avsr_hnd_t *ah, const char *script)
-{
-    AVS_Value arg = avs_new_value_string(script);
-    return ah->func.avs_invoke(ah->env, "Import", arg, NULL);
-}
-
-
 static AVS_Value
 invoke_avs_filter(avsr_hnd_t *ah, AVS_Value before, const char *filter)
 {
@@ -139,7 +132,8 @@ invoke_avs_filter(avsr_hnd_t *ah, AVS_Value before, const char *filter)
 }
 
 
-static AVS_Value initialize_avisynth(avsr_hnd_t *ah, const char *script)
+static AVS_Value
+initialize_avisynth(avsr_hnd_t *ah, const char *input, const char *mode)
 {
     if (load_avisynth_dll(ah)) {
         return avs_void;
@@ -152,10 +146,10 @@ static AVS_Value initialize_avisynth(avsr_hnd_t *ah, const char *script)
 
     ah->avs_version = get_avisynth_version(ah);
 
-    AVS_Value res = avs_void;
-    res = import_avs(ah, script);
+    AVS_Value res = ah->func.avs_invoke(
+        ah->env, mode, avs_new_value_string(input), NULL);
     if (avs_is_error(res) || !avs_defined(res)) {
-        return res;
+        goto invalid;
     }
 
 #ifdef BLAME_THE_FLUFF
@@ -332,7 +326,8 @@ static void close_handler(avsr_hnd_t *ah)
 }
 
 
-static avsr_hnd_t *avsr_init(const char *script, int bitdepth)
+static avsr_hnd_t *
+init_handler(const char *input, int bitdepth, const char *mode)
 {
     avsr_hnd_t *ah = (avsr_hnd_t *)calloc(sizeof(avsr_hnd_t), 1);
     if (!ah) {
@@ -340,7 +335,7 @@ static avsr_hnd_t *avsr_init(const char *script, int bitdepth)
     }
 
     ah->bitdepth = bitdepth;
-    AVS_Value res = initialize_avisynth(ah, script);
+    AVS_Value res = initialize_avisynth(ah, input, mode);
     if (!avs_is_clip(res)) {
         close_handler(ah);
         return NULL;
@@ -358,8 +353,8 @@ static avsr_hnd_t *avsr_init(const char *script, int bitdepth)
 }
 
 
-static void __stdcall avsr_close(void *instance_data, VSCore *core,
-                                 const VSAPI *vsapi)
+static void __stdcall
+vs_close(void *instance_data, VSCore *core, const VSAPI *vsapi)
 {
     avsr_hnd_t *ah = (avsr_hnd_t *)instance_data;
     close_handler(ah);
@@ -418,33 +413,51 @@ avsr_get_frame(int n, int activation_reason, void **instance_data,
 }
 
 
-static void __stdcall create_source(const VSMap *in, VSMap *out, void *user_data,
-                                    VSCore *core, const VSAPI *vsapi)
+static void
+create_source(const VSMap *in, VSMap *out, void *user_data, VSCore *core,
+              const VSAPI *vsapi, const char *mode)
 {
     int err;
-
-    const char *script = vsapi->propGetData(in, "script", 0, 0);
+    char msg[256] = {0};
 
     int bitdepth = vsapi->propGetInt(in, "bitdepth", 0, &err);
     if (err) {
         bitdepth = 8;
     }
     if (bitdepth != 8 && bitdepth != 9 && bitdepth != 10 && bitdepth != 16) {
-        vsapi->setError(out, "Source: Invalid bitdepth was specified");
+        sprintf(msg, "%s: Invalid bitdepth was specified", mode);
+        vsapi->setError(out, msg);
         return;
     }
 
-    avsr_hnd_t *ah = avsr_init(script, bitdepth);
+    const char *arg = strcmp(mode, "Import") == 0 ? "script" : "lines";
+    const char *input = vsapi->propGetData(in, arg, 0, 0);
+    avsr_hnd_t *ah = init_handler(input, bitdepth, mode);
     if (!ah) {
-        vsapi->setError(out, "Source: avisynth initialize failed");
+        sprintf(msg, "%s: Failed to initialize avisynth", mode);
+        vsapi->setError(out, msg);
         return;
     }
 
-    const VSNodeRef *node = vsapi->createFilter(in, out, "Source", vs_init,
-                                                avsr_get_frame, avsr_close,
-                                                fmSerial, 0, ah, core);
+    const VSNodeRef *node = vsapi->createFilter(
+        in, out, mode, vs_init, avsr_get_frame, vs_close, fmSerial, 0, ah, core);
     vsapi->propSetNode(out, "clip", node, 0);
+}
 
+
+static void __stdcall
+create_import(const VSMap *in, VSMap *out, void *user_data, VSCore *core,
+              const VSAPI *vsapi)
+{
+    create_source(in, out, user_data, core, vsapi, "Import");
+}
+
+
+static void __stdcall
+create_eval(const VSMap *in, VSMap *out, void *user_data, VSCore *core,
+            const VSAPI *vsapi)
+{
+    create_source(in, out, user_data, core, vsapi, "Eval");
 }
 
 
@@ -454,6 +467,7 @@ EXTERN_C __declspec(dllexport) void __stdcall VapourSynthPluginInit(
     f_config("chikuzen.does.not.have.his.own.domain.avsr", "avsr",
              "AviSynth Script Reader for VapourSynth", VAPOURSYNTH_API_VERSION,
              1, plugin);
-    f_register("Source", "script:data;bitdepth:int:opt;", create_source, NULL,
+    f_register("Import", "script:data;bitdepth:int:opt;", create_import, NULL,
                plugin);
+    f_register("Eval", "lines:data;bitdepth:int:opt", create_eval, NULL, plugin);
 }
