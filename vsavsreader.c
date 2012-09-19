@@ -400,6 +400,9 @@ avsr_get_frame_rgb(int n, int activation_reason, void **instance_data,
     for (int i = 0; i < 3; i++) {
         src[i] = ah->func.avs_get_frame(ah->gbrclip[i], frame_number);
         if (ah->func.avs_clip_get_error(ah->gbrclip[i])) {
+            for (int j = 0; j < i; j++) {
+                ah->func.avs_release_video_frame(src[j]);
+            }
             return NULL;
         }
     }
