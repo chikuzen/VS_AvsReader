@@ -235,25 +235,25 @@ static VSFormat *set_vs_format(avsr_hnd_t *ah)
         int subsample_w;
         int subsample_h;
     } table[] = {
-        { PIX_OR_DEPTH(AVS_CS_BGR32, 8), pfRGB24,      "RGB24",     cmRgb,  0, 0 },
-        { PIX_OR_DEPTH(AVS_CS_BGR24, 8), pfRGB24,      "RGB24",     cmRgb,  0, 0 },
-        { PIX_OR_DEPTH(AVS_CS_YV24,  8), pfYUV444P8,   "YUV444P8",  cmYuv,  0, 0 },
-        { PIX_OR_DEPTH(AVS_CS_YV24,  9), pfYUV444P9,   "YUV444P9",  cmYuv,  0, 0 },
-        { PIX_OR_DEPTH(AVS_CS_YV24, 10), pfYUV444P10,  "YUV444P10", cmYuv,  0, 0 },
-        { PIX_OR_DEPTH(AVS_CS_YV24, 16), pfYUV444P16,  "YUV444P16", cmYuv,  0, 0 },
-        { PIX_OR_DEPTH(AVS_CS_YV16,  8), pfYUV422P8,   "YUV422P8",  cmYuv,  1, 0 },
-        { PIX_OR_DEPTH(AVS_CS_YV16,  9), pfYUV422P9,   "YUV422P9",  cmYuv,  1, 0 },
-        { PIX_OR_DEPTH(AVS_CS_YV16, 10), pfYUV422P10,  "YUV422P10", cmYuv,  1, 0 },
-        { PIX_OR_DEPTH(AVS_CS_YV16, 16), pfYUV422P16,  "YUV422P16", cmYuv,  1, 0 },
-        { PIX_OR_DEPTH(AVS_CS_YV411, 8), pfYUV411P8,   "YUV411P8",  cmYuv,  2, 0 },
-        { PIX_OR_DEPTH(AVS_CS_I420,  8), pfYUV420P8,   "YUV420P8",  cmYuv,  1, 1 },
-        { PIX_OR_DEPTH(AVS_CS_I420,  9), pfYUV420P9,   "YUV420P9",  cmYuv,  1, 1 },
-        { PIX_OR_DEPTH(AVS_CS_I420, 10), pfYUV420P10,  "YUV420P10", cmYuv,  1, 1 },
-        { PIX_OR_DEPTH(AVS_CS_I420, 16), pfYUV420P16,  "YUV420P16", cmYuv,  1, 1 },
-        { PIX_OR_DEPTH(AVS_CS_YV12,  8), pfYUV420P8,   "YUV420P8",  cmYuv,  1, 1 },
-        { PIX_OR_DEPTH(AVS_CS_YV12,  9), pfYUV420P9,   "YUV420P9",  cmYuv,  1, 1 },
-        { PIX_OR_DEPTH(AVS_CS_YV12, 10), pfYUV420P10,  "YUV420P10", cmYuv,  1, 1 },
-        { PIX_OR_DEPTH(AVS_CS_YV12, 16), pfYUV420P16,  "YUV420P16", cmYuv,  1, 1 },
+        { PIX_OR_DEPTH(AVS_CS_BGR32, 8), pfRGB24,      "RGB24",     cmRGB,  0, 0 },
+        { PIX_OR_DEPTH(AVS_CS_BGR24, 8), pfRGB24,      "RGB24",     cmRGB,  0, 0 },
+        { PIX_OR_DEPTH(AVS_CS_YV24,  8), pfYUV444P8,   "YUV444P8",  cmYUV,  0, 0 },
+        { PIX_OR_DEPTH(AVS_CS_YV24,  9), pfYUV444P9,   "YUV444P9",  cmYUV,  0, 0 },
+        { PIX_OR_DEPTH(AVS_CS_YV24, 10), pfYUV444P10,  "YUV444P10", cmYUV,  0, 0 },
+        { PIX_OR_DEPTH(AVS_CS_YV24, 16), pfYUV444P16,  "YUV444P16", cmYUV,  0, 0 },
+        { PIX_OR_DEPTH(AVS_CS_YV16,  8), pfYUV422P8,   "YUV422P8",  cmYUV,  1, 0 },
+        { PIX_OR_DEPTH(AVS_CS_YV16,  9), pfYUV422P9,   "YUV422P9",  cmYUV,  1, 0 },
+        { PIX_OR_DEPTH(AVS_CS_YV16, 10), pfYUV422P10,  "YUV422P10", cmYUV,  1, 0 },
+        { PIX_OR_DEPTH(AVS_CS_YV16, 16), pfYUV422P16,  "YUV422P16", cmYUV,  1, 0 },
+        { PIX_OR_DEPTH(AVS_CS_YV411, 8), pfYUV411P8,   "YUV411P8",  cmYUV,  2, 0 },
+        { PIX_OR_DEPTH(AVS_CS_I420,  8), pfYUV420P8,   "YUV420P8",  cmYUV,  1, 1 },
+        { PIX_OR_DEPTH(AVS_CS_I420,  9), pfYUV420P9,   "YUV420P9",  cmYUV,  1, 1 },
+        { PIX_OR_DEPTH(AVS_CS_I420, 10), pfYUV420P10,  "YUV420P10", cmYUV,  1, 1 },
+        { PIX_OR_DEPTH(AVS_CS_I420, 16), pfYUV420P16,  "YUV420P16", cmYUV,  1, 1 },
+        { PIX_OR_DEPTH(AVS_CS_YV12,  8), pfYUV420P8,   "YUV420P8",  cmYUV,  1, 1 },
+        { PIX_OR_DEPTH(AVS_CS_YV12,  9), pfYUV420P9,   "YUV420P9",  cmYUV,  1, 1 },
+        { PIX_OR_DEPTH(AVS_CS_YV12, 10), pfYUV420P10,  "YUV420P10", cmYUV,  1, 1 },
+        { PIX_OR_DEPTH(AVS_CS_YV12, 16), pfYUV420P16,  "YUV420P16", cmYUV,  1, 1 },
         { PIX_OR_DEPTH(AVS_CS_Y8,    8), pfGray8,      "GRAY8",     cmGray, 0, 0 },
         { PIX_OR_DEPTH(AVS_CS_Y8,   16), pfGray16,     "GRAY16",    cmGray, 0, 0 },
         { val, 0 }
@@ -531,7 +531,8 @@ EXTERN_C __declspec(dllexport) void __stdcall VapourSynthPluginInit(
     f_config("chikuzen.does.not.have.his.own.domain.avsr", "avsr",
              "AviSynth Script Reader for VapourSynth", VAPOURSYNTH_API_VERSION,
              1, plugin);
-    f_register("Import", "script:data;bitdepth:int:opt;", create_import, NULL,
-               plugin);
-    f_register("Eval", "lines:data;bitdepth:int:opt", create_eval, NULL, plugin);
+    f_register("Import", "script:data;bitdepth:int:opt;",
+               create_import, NULL, plugin);
+    f_register("Eval", "lines:data;bitdepth:int:opt;",
+               create_eval, NULL, plugin);
 }

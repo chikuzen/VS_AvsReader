@@ -3,8 +3,11 @@ vsavsreader.dll -- AviSynth Script Reader plugin for VapourSynth
  Author: Oka Motofumi (chikuzen.mo at gmail dot com)
 -----------------------------------------------------------------
 
-examples:
+rquirement:
+avisynth2.6alpha3 or later
 
+
+examples:
 
 #preparation
 
@@ -12,8 +15,8 @@ examples:
 >>> core = vs.Core()
 >>> core.std.LoadPlugin('vsavsreader.dll')
 
-
 #case 'Import'
+
 >>> clip = core.avsr.Import('C:/foo/bar/script.avs')
 
 
