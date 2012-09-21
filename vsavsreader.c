@@ -160,13 +160,14 @@ initialize_avisynth(avsr_hnd_t *ah, const char *input, const char *mode)
     }
 
     if (get_avisynth_version(ah) < 260) {
-        fprintf(stderr, "unsupported version of avisynth.dll was found.\n");
+        fprintf(stderr, "avsr: unsupported version of avisynth.dll was found.\n");
         return avs_void;
     }
 
     AVS_Value res = ah->func.avs_invoke(
         ah->env, mode, avs_new_value_string(input), NULL);
     if (avs_is_error(res) || !avs_defined(res)) {
+        fprintf(stderr, "avsr: failed to %s.\n", input);
         goto invalid;
     }
 
@@ -183,9 +184,15 @@ initialize_avisynth(avsr_hnd_t *ah, const char *input, const char *mode)
 #endif
 
     ah->clip = ah->func.avs_take_clip(res, ah->env);
+    const char *err = ah->func.avs_clip_get_error(ah->clip);
+    if (err) {
+        fprintf(stderr, "avsr: %s\n", err);
+        goto invalid;
+    }
     ah->avs_vi = ah->func.avs_get_video_info(ah->clip);
 
     if (!avs_has_video(ah->avs_vi)) {
+        fprintf(stderr, "avsr: clip has no video.\n");
         goto invalid;
     }
 
@@ -206,6 +213,7 @@ initialize_avisynth(avsr_hnd_t *ah, const char *input, const char *mode)
         (avs_is_y8(ah->avs_vi) && ah->bitdepth != 16) ||
         ((avs_is_yv24(ah->avs_vi) || avs_is_y8(ah->avs_vi)) && (ah->avs_vi->width & 1)) ||
         ((avs_is_yv16(ah->avs_vi) || avs_is_yv12(ah->avs_vi)) && (ah->avs_vi->width & 3))) {
+        fprintf(stderr, "avsr: invalid bitdepth/resolution\n");
         goto invalid;
     }
 
@@ -223,6 +231,7 @@ static VSFormat *set_vs_format(avsr_hnd_t *ah)
 {
     VSFormat *format = (VSFormat *)calloc(sizeof(VSFormat), 1);
     if (!format) {
+        fprintf(stderr, "avsr: memory allocation failed at %s\n", __func__);
         return NULL;
     }
 
@@ -262,6 +271,7 @@ static VSFormat *set_vs_format(avsr_hnd_t *ah)
     int i;
     for (i = 0; table[i].avs_pix_type != val; i++);
     if (table[i].id == 0) {
+        fprintf(stderr, "avsr: couldn't found valid format type.\n");
         free(format);
         return NULL;
     }
@@ -342,6 +352,7 @@ init_handler(const char *input, int bitdepth, const char *mode)
 {
     avsr_hnd_t *ah = (avsr_hnd_t *)calloc(sizeof(avsr_hnd_t), 1);
     if (!ah) {
+        fprintf(stderr, "avsr: memory allocation failed at %s\n", __func__);
         return NULL;
     }
 
@@ -482,12 +493,17 @@ create_source(const VSMap *in, VSMap *out, void *user_data, VSCore *core,
     int err;
     char msg[256] = {0};
 
+    const VSVersion *vsver = vsapi->getVersion();
+    if (vsver->core < 8 && vsver->api < 2) {
+        vsapi->setError(out, "avsr: unsupported vapoursynth version was found");
+        return;
+    }
     int bitdepth = vsapi->propGetInt(in, "bitdepth", 0, &err);
     if (err) {
         bitdepth = 8;
     }
     if (bitdepth != 8 && bitdepth != 9 && bitdepth != 10 && bitdepth != 16) {
-        sprintf(msg, "%s: Invalid bitdepth was specified", mode);
+        sprintf(msg, "%s: invalid bitdepth was specified", mode);
         vsapi->setError(out, msg);
         return;
     }
@@ -496,7 +512,7 @@ create_source(const VSMap *in, VSMap *out, void *user_data, VSCore *core,
     const char *input = vsapi->propGetData(in, arg, 0, 0);
     avsr_hnd_t *ah = init_handler(input, bitdepth, mode);
     if (!ah) {
-        sprintf(msg, "%s: Failed to initialize avisynth", mode);
+        sprintf(msg, "%s: failed to initialize avisynth", mode);
         vsapi->setError(out, msg);
         return;
     }
