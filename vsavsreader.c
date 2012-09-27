@@ -494,7 +494,7 @@ create_source(const VSMap *in, VSMap *out, void *user_data, VSCore *core,
     char msg[256] = {0};
 
     const VSVersion *vsver = vsapi->getVersion();
-    if (vsver->core < 8 && vsver->api < 2) {
+    if (vsver->core < 9) {
         vsapi->setError(out, "avsr: unsupported vapoursynth version was found");
         return;
     }
