@@ -422,7 +422,7 @@ avsr_get_frame_rgb(int n, int activation_reason, void **instance_data,
                                            ah->vs_vi.height, NULL, core);
 
     VSMap *props = vsapi->getFramePropsRW(dst);
-    vsapi->propSetInt(props, "_DurationNum", ah->avs_vi->fps_denominator * n, 0);
+    vsapi->propSetInt(props, "_DurationNum", ah->avs_vi->fps_denominator, 0);
     vsapi->propSetInt(props, "_DurationDen", ah->avs_vi->fps_numerator, 0);
 
     for (int i = 0; i < 3; i++) {
@@ -466,7 +466,7 @@ avsr_get_frame_yuv(int n, int activation_reason, void **instance_data,
                                            ah->vs_vi.height, NULL, core);
 
     VSMap *props = vsapi->getFramePropsRW(dst);
-    vsapi->propSetInt(props, "_DurationNum", ah->avs_vi->fps_denominator * n, 0);
+    vsapi->propSetInt(props, "_DurationNum", ah->avs_vi->fps_denominator, 0);
     vsapi->propSetInt(props, "_DurationDen", ah->avs_vi->fps_numerator, 0);
 
     const int plane[] = {AVS_PLANAR_Y, AVS_PLANAR_U, AVS_PLANAR_V};
