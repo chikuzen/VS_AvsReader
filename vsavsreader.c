@@ -227,44 +227,35 @@ invalid:
 
 #define PIX_OR_DEPTH(pix, depth) (((uint64_t)pix << 8) | (depth))
 
-static VSFormat *set_vs_format(avsr_hnd_t *ah)
+static const VSFormat *
+set_vs_format(avsr_hnd_t *ah, VSCore *core, const VSAPI *vsapi)
 {
-    VSFormat *format = (VSFormat *)calloc(sizeof(VSFormat), 1);
-    if (!format) {
-        fprintf(stderr, "avsr: memory allocation failed at %s\n", __func__);
-        return NULL;
-    }
-
     uint64_t val = PIX_OR_DEPTH(ah->avs_vi->pixel_type, ah->bitdepth);
     struct {
         uint64_t avs_pix_type;
         int id;
-        char *name;
-        int color_family;
-        int subsample_w;
-        int subsample_h;
     } table[] = {
-        { PIX_OR_DEPTH(AVS_CS_BGR32, 8), pfRGB24,      "RGB24",     cmRGB,  0, 0 },
-        { PIX_OR_DEPTH(AVS_CS_BGR24, 8), pfRGB24,      "RGB24",     cmRGB,  0, 0 },
-        { PIX_OR_DEPTH(AVS_CS_YV24,  8), pfYUV444P8,   "YUV444P8",  cmYUV,  0, 0 },
-        { PIX_OR_DEPTH(AVS_CS_YV24,  9), pfYUV444P9,   "YUV444P9",  cmYUV,  0, 0 },
-        { PIX_OR_DEPTH(AVS_CS_YV24, 10), pfYUV444P10,  "YUV444P10", cmYUV,  0, 0 },
-        { PIX_OR_DEPTH(AVS_CS_YV24, 16), pfYUV444P16,  "YUV444P16", cmYUV,  0, 0 },
-        { PIX_OR_DEPTH(AVS_CS_YV16,  8), pfYUV422P8,   "YUV422P8",  cmYUV,  1, 0 },
-        { PIX_OR_DEPTH(AVS_CS_YV16,  9), pfYUV422P9,   "YUV422P9",  cmYUV,  1, 0 },
-        { PIX_OR_DEPTH(AVS_CS_YV16, 10), pfYUV422P10,  "YUV422P10", cmYUV,  1, 0 },
-        { PIX_OR_DEPTH(AVS_CS_YV16, 16), pfYUV422P16,  "YUV422P16", cmYUV,  1, 0 },
-        { PIX_OR_DEPTH(AVS_CS_YV411, 8), pfYUV411P8,   "YUV411P8",  cmYUV,  2, 0 },
-        { PIX_OR_DEPTH(AVS_CS_I420,  8), pfYUV420P8,   "YUV420P8",  cmYUV,  1, 1 },
-        { PIX_OR_DEPTH(AVS_CS_I420,  9), pfYUV420P9,   "YUV420P9",  cmYUV,  1, 1 },
-        { PIX_OR_DEPTH(AVS_CS_I420, 10), pfYUV420P10,  "YUV420P10", cmYUV,  1, 1 },
-        { PIX_OR_DEPTH(AVS_CS_I420, 16), pfYUV420P16,  "YUV420P16", cmYUV,  1, 1 },
-        { PIX_OR_DEPTH(AVS_CS_YV12,  8), pfYUV420P8,   "YUV420P8",  cmYUV,  1, 1 },
-        { PIX_OR_DEPTH(AVS_CS_YV12,  9), pfYUV420P9,   "YUV420P9",  cmYUV,  1, 1 },
-        { PIX_OR_DEPTH(AVS_CS_YV12, 10), pfYUV420P10,  "YUV420P10", cmYUV,  1, 1 },
-        { PIX_OR_DEPTH(AVS_CS_YV12, 16), pfYUV420P16,  "YUV420P16", cmYUV,  1, 1 },
-        { PIX_OR_DEPTH(AVS_CS_Y8,    8), pfGray8,      "GRAY8",     cmGray, 0, 0 },
-        { PIX_OR_DEPTH(AVS_CS_Y8,   16), pfGray16,     "GRAY16",    cmGray, 0, 0 },
+        { PIX_OR_DEPTH(AVS_CS_BGR32, 8), pfRGB24     },
+        { PIX_OR_DEPTH(AVS_CS_BGR24, 8), pfRGB24     },
+        { PIX_OR_DEPTH(AVS_CS_YV24,  8), pfYUV444P8  },
+        { PIX_OR_DEPTH(AVS_CS_YV24,  9), pfYUV444P9  },
+        { PIX_OR_DEPTH(AVS_CS_YV24, 10), pfYUV444P10 },
+        { PIX_OR_DEPTH(AVS_CS_YV24, 16), pfYUV444P16 },
+        { PIX_OR_DEPTH(AVS_CS_YV16,  8), pfYUV422P8  },
+        { PIX_OR_DEPTH(AVS_CS_YV16,  9), pfYUV422P9  },
+        { PIX_OR_DEPTH(AVS_CS_YV16, 10), pfYUV422P10 },
+        { PIX_OR_DEPTH(AVS_CS_YV16, 16), pfYUV422P16 },
+        { PIX_OR_DEPTH(AVS_CS_YV411, 8), pfYUV411P8  },
+        { PIX_OR_DEPTH(AVS_CS_I420,  8), pfYUV420P8  },
+        { PIX_OR_DEPTH(AVS_CS_I420,  9), pfYUV420P9  },
+        { PIX_OR_DEPTH(AVS_CS_I420, 10), pfYUV420P10 },
+        { PIX_OR_DEPTH(AVS_CS_I420, 16), pfYUV420P16 },
+        { PIX_OR_DEPTH(AVS_CS_YV12,  8), pfYUV420P8  },
+        { PIX_OR_DEPTH(AVS_CS_YV12,  9), pfYUV420P9  },
+        { PIX_OR_DEPTH(AVS_CS_YV12, 10), pfYUV420P10 },
+        { PIX_OR_DEPTH(AVS_CS_YV12, 16), pfYUV420P16 },
+        { PIX_OR_DEPTH(AVS_CS_Y8,    8), pfGray8     },
+        { PIX_OR_DEPTH(AVS_CS_Y8,   16), pfGray16    },
         { val, 0 }
     };
 
@@ -272,28 +263,18 @@ static VSFormat *set_vs_format(avsr_hnd_t *ah)
     for (i = 0; table[i].avs_pix_type != val; i++);
     if (table[i].id == 0) {
         fprintf(stderr, "avsr: couldn't found valid format type.\n");
-        free(format);
         return NULL;
     }
 
-    format->id = table[i].id;
-    strcpy(format->name, table[i].name);
-    format->colorFamily = table[i].color_family;
-    format->bitsPerSample = ah->bitdepth;
-    format->bytesPerSample = (ah->bitdepth + 7) / 8;
-    format->subSamplingW = table[i].subsample_w;
-    format->subSamplingH = table[i].subsample_h;
-    format->numPlanes = avs_is_y8(ah->avs_vi) ? 1 : 3;
-
-    return format;
+    return vsapi->getFormatPreset(table[i].id, core);
 
 }
 #undef PIX_OR_DEPTH
 
 
-static int set_vs_videoinfo(avsr_hnd_t *ah)
+static int set_vs_videoinfo(avsr_hnd_t *ah, VSCore *core, const VSAPI *vsapi)
 {
-    ah->vs_vi.format = set_vs_format(ah);
+    ah->vs_vi.format = set_vs_format(ah, core, vsapi);
     if (!ah->vs_vi.format) {
         return -1;
     }
@@ -335,10 +316,6 @@ static void close_handler(avsr_hnd_t *ah)
         return;
     }
 
-    if (ah->vs_vi.format) {
-        free((void *)ah->vs_vi.format);
-        ah->vs_vi.format = NULL;
-    }
     if (ah->library) {
         close_avisynth_dll(ah);
     }
@@ -348,7 +325,8 @@ static void close_handler(avsr_hnd_t *ah)
 
 
 static avsr_hnd_t *
-init_handler(const char *input, int bitdepth, const char *mode)
+init_handler(const char *input, int bitdepth, const char *mode, VSCore *core,
+             const VSAPI *vsapi)
 {
     avsr_hnd_t *ah = (avsr_hnd_t *)calloc(sizeof(avsr_hnd_t), 1);
     if (!ah) {
@@ -365,7 +343,7 @@ init_handler(const char *input, int bitdepth, const char *mode)
 
     ah->func.avs_release_value(res);
 
-    if (set_vs_videoinfo(ah)) {
+    if (set_vs_videoinfo(ah, core, vsapi)) {
         close_handler(ah);
         return NULL;
     }
@@ -510,7 +488,7 @@ create_source(const VSMap *in, VSMap *out, void *user_data, VSCore *core,
 
     const char *arg = strcmp(mode, "Import") == 0 ? "script" : "lines";
     const char *input = vsapi->propGetData(in, arg, 0, 0);
-    avsr_hnd_t *ah = init_handler(input, bitdepth, mode);
+    avsr_hnd_t *ah = init_handler(input, bitdepth, mode, core, vsapi);
     if (!ah) {
         sprintf(msg, "%s: failed to initialize avisynth", mode);
         vsapi->setError(out, msg);
