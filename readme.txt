@@ -96,5 +96,5 @@ Vapoursynth script
 ... Dither_resize16(1280, 720)
 ... Dither_convey_yuv4xxp16_on_yvxx()
 ... '''
->>> video = core.avsr.Eval(lines)
+>>> video = core.avsr.Eval(lines=lines, bitdepth=16)
 

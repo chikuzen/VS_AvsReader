@@ -464,7 +464,7 @@ avsr_get_frame_yuv(int n, int activation_reason, void **instance_data,
 }
 
 
-static void
+static void __stdcall
 create_source(const VSMap *in, VSMap *out, void *user_data, VSCore *core,
               const VSAPI *vsapi, const char *mode)
 {
@@ -519,7 +519,7 @@ create_eval(const VSMap *in, VSMap *out, void *user_data, VSCore *core,
 }
 
 
-EXTERN_C __declspec(dllexport) void __stdcall VapourSynthPluginInit(
+__declspec(dllexport) void __stdcall VapourSynthPluginInit(
     VSConfigPlugin f_config, VSRegisterFunction f_register, VSPlugin *plugin)
 {
     f_config("chikuzen.does.not.have.his.own.domain.avsr", "avsr",
