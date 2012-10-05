@@ -2,7 +2,7 @@
 CC = $(CROSS)gcc
 LD = $(CROSS)gcc
 
-CFLAGS = -Wall -std=gnu99 -Os -g0 -I. -march=i686 -msse -ffast-math -mfpmath=sse -fno-strict-aliasing -fexcess-precision=fast
+CFLAGS = -Wall -std=gnu99 -Os -g0 -I. -march=i686 -msse -ffast-math -mfpmath=sse -fexcess-precision=fast
 DCFLAGS = -Wall -std=gnu99 -O0 -g3 -I.
 
 LDFLAGS = -shared -Wl,--dll,--add-stdcall-alias -Wl,-s -L.

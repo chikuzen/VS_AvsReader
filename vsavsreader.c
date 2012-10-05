@@ -66,8 +66,8 @@ typedef struct {
 
 #define LOAD_AVS_FUNC(name, continue_on_fail)\
 {\
-    ah->func.name = (void*)GetProcAddress(ah->library, #name);\
-    if( !continue_on_fail && !ah->func.name )\
+    ah->func.name = (name##_func)GetProcAddress(ah->library, #name);\
+    if (!continue_on_fail && !ah->func.name)\
         goto fail;\
 }
 
@@ -78,7 +78,7 @@ static int load_avisynth_dll(avsr_hnd_t *ah)
         return -1;
     }
 
-    LOAD_AVS_FUNC(avs_clip_get_error, 0 );
+    LOAD_AVS_FUNC(avs_clip_get_error, 0);
     LOAD_AVS_FUNC(avs_create_script_environment, 0);
     LOAD_AVS_FUNC(avs_delete_script_environment, 1);
     LOAD_AVS_FUNC(avs_get_error, 1);
