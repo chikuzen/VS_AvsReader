@@ -135,7 +135,7 @@ invoke_avs_filter(avsr_hnd_t *ah, AVS_Value before, const char *filter)
 
 static void take_y8_clips_from_bgr(avsr_hnd_t *ah, AVS_Value res)
 {
-    const char *filter[] = {"ShowGreen", "ShowBlue", "ShowRed"};
+    const char *filter[] = {"ShowRed", "ShowGreen", "ShowBlue"};
     AVS_Value args[] = {res, avs_new_value_string("Y8")};
     AVS_Value array = avs_new_value_array(args, 2);
 
