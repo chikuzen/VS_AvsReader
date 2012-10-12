@@ -35,12 +35,14 @@
 
 
 #define AVSC_DECLARE_FUNC(name) name##_func name
-typedef struct {
+typedef struct avsr_handle {
     VSVideoInfo vs_vi;
     int avs_version;
     int bitdepth;
     AVS_Clip *clip;
-    AVS_Clip *gbrclip[3];
+    AVS_Clip *rgbclip[3];
+    int (__stdcall *write_frame)(struct avsr_handle *, int, VSFrameRef *,
+                                 const VSAPI *);
     AVS_ScriptEnvironment *env;
     const AVS_VideoInfo *avs_vi;
     HMODULE library;
@@ -71,7 +73,7 @@ typedef struct {
         goto fail;\
 }
 
-static int load_avisynth_dll(avsr_hnd_t *ah)
+static int __stdcall load_avisynth_dll(avsr_hnd_t *ah)
 {
     ah->library = LoadLibrary("avisynth");
     if(!ah->library) {
@@ -102,7 +104,7 @@ fail:
 #undef LOAD_AVS_FUNC
 
 
-static int get_avisynth_version(avsr_hnd_t *ah)
+static int __stdcall get_avisynth_version(avsr_hnd_t *ah)
 {
     if (!ah->func.avs_function_exists(ah->env, "VersionNumber")) {
         return 0;
@@ -121,7 +123,7 @@ static int get_avisynth_version(avsr_hnd_t *ah)
 }
 
 
-static AVS_Value
+static AVS_Value __stdcall
 invoke_avs_filter(avsr_hnd_t *ah, AVS_Value before, const char *filter)
 {
     ah->func.avs_release_clip(ah->clip);
@@ -133,7 +135,7 @@ invoke_avs_filter(avsr_hnd_t *ah, AVS_Value before, const char *filter)
 }
 
 
-static void take_y8_clips_from_bgr(avsr_hnd_t *ah, AVS_Value res)
+static void __stdcall take_y8_clips_from_bgr(avsr_hnd_t *ah, AVS_Value res)
 {
     const char *filter[] = {"ShowRed", "ShowGreen", "ShowBlue"};
     AVS_Value args[] = {res, avs_new_value_string("Y8")};
@@ -141,13 +143,13 @@ static void take_y8_clips_from_bgr(avsr_hnd_t *ah, AVS_Value res)
 
     for (int i = 0; i < 3; i++) {
         AVS_Value tmp = ah->func.avs_invoke(ah->env, filter[i], array, NULL);
-        ah->gbrclip[i] = ah->func.avs_take_clip(tmp, ah->env);
+        ah->rgbclip[i] = ah->func.avs_take_clip(tmp, ah->env);
         ah->func.avs_release_value(tmp);
     }
 }
 
 
-static AVS_Value
+static AVS_Value __stdcall
 initialize_avisynth(avsr_hnd_t *ah, const char *input, const char *mode)
 {
     if (load_avisynth_dll(ah)) {
@@ -160,7 +162,8 @@ initialize_avisynth(avsr_hnd_t *ah, const char *input, const char *mode)
     }
 
     if (get_avisynth_version(ah) < 260) {
-        fprintf(stderr, "avsr: unsupported version of avisynth.dll was found.\n");
+        fprintf(stderr,
+                "avsr: unsupported version of avisynth.dll was found.\n");
         return avs_void;
     }
 
@@ -227,8 +230,8 @@ invalid:
 
 #define PIX_OR_DEPTH(pix, depth) (((uint64_t)pix << 8) | (depth))
 
-static const VSFormat *
-set_vs_format(avsr_hnd_t *ah, VSCore *core, const VSAPI *vsapi)
+static const VSFormat * __stdcall
+get_vs_format(avsr_hnd_t *ah, VSCore *core, const VSAPI *vsapi)
 {
     uint64_t val = PIX_OR_DEPTH(ah->avs_vi->pixel_type, ah->bitdepth);
     struct {
@@ -272,9 +275,10 @@ set_vs_format(avsr_hnd_t *ah, VSCore *core, const VSAPI *vsapi)
 #undef PIX_OR_DEPTH
 
 
-static int set_vs_videoinfo(avsr_hnd_t *ah, VSCore *core, const VSAPI *vsapi)
+static int __stdcall
+set_vs_videoinfo(avsr_hnd_t *ah, VSCore *core, const VSAPI *vsapi)
 {
-    ah->vs_vi.format = set_vs_format(ah, core, vsapi);
+    ah->vs_vi.format = get_vs_format(ah, core, vsapi);
     if (!ah->vs_vi.format) {
         return -1;
     }
@@ -290,16 +294,16 @@ static int set_vs_videoinfo(avsr_hnd_t *ah, VSCore *core, const VSAPI *vsapi)
 }
 
 
-static void close_avisynth_dll(avsr_hnd_t *ah)
+static void __stdcall close_avisynth_dll(avsr_hnd_t *ah)
 {
     if (ah->clip) {
         ah->func.avs_release_clip(ah->clip);
         ah->clip = NULL;
     }
     for (int i = 0; i < 3; i++) {
-        if (ah->gbrclip[i]) {
-            ah->func.avs_release_clip(ah->gbrclip[i]);
-            ah->gbrclip[i] = NULL;
+        if (ah->rgbclip[i]) {
+            ah->func.avs_release_clip(ah->rgbclip[i]);
+            ah->rgbclip[i] = NULL;
         }
     }
     if (ah->func.avs_delete_script_environment) {
@@ -310,7 +314,7 @@ static void close_avisynth_dll(avsr_hnd_t *ah)
 }
 
 
-static void close_handler(avsr_hnd_t *ah)
+static void __stdcall close_handler(avsr_hnd_t *ah)
 {
     if (!ah) {
         return;
@@ -324,7 +328,7 @@ static void close_handler(avsr_hnd_t *ah)
 }
 
 
-static avsr_hnd_t *
+static avsr_hnd_t * __stdcall
 init_handler(const char *input, int bitdepth, const char *mode, VSCore *core,
              const VSAPI *vsapi)
 {
@@ -349,7 +353,6 @@ init_handler(const char *input, int bitdepth, const char *mode, VSCore *core,
     }
 
     return ah;
-
 }
 
 
@@ -361,47 +364,28 @@ vs_close(void *instance_data, VSCore *core, const VSAPI *vsapi)
 }
 
 
-static void __stdcall vs_init(VSMap *in, VSMap *out, void **instance_data,
-                              VSNode *node, VSCore *core, const VSAPI *vsapi)
+static void __stdcall
+vs_init(VSMap *in, VSMap *out, void **instance_data, VSNode *node,
+        VSCore *core, const VSAPI *vsapi)
 {
     avsr_hnd_t *ah = (avsr_hnd_t *)*instance_data;
     vsapi->setVideoInfo(&ah->vs_vi, node);
 }
 
 
-static const VSFrameRef * __stdcall
-avsr_get_frame_rgb(int n, int activation_reason, void **instance_data,
-                   void **frame_data, VSFrameContext *frame_ctx, VSCore *core,
-                   const VSAPI *vsapi)
+static int __stdcall
+write_frame_rgb(avsr_hnd_t *ah, int n, VSFrameRef *dst, const VSAPI *vsapi)
 {
-    if (activation_reason != arInitial) {
-        return NULL;
-    }
-
-    avsr_hnd_t *ah = (avsr_hnd_t *)*instance_data;
-
-    int frame_number = n;
-    if (n >= ah->avs_vi->num_frames) {
-        frame_number = ah->avs_vi->num_frames - 1;
-    }
-
     AVS_VideoFrame *src[3];
     for (int i = 0; i < 3; i++) {
-        src[i] = ah->func.avs_get_frame(ah->gbrclip[i], frame_number);
-        if (ah->func.avs_clip_get_error(ah->gbrclip[i])) {
+        src[i] = ah->func.avs_get_frame(ah->rgbclip[i], n);
+        if (ah->func.avs_clip_get_error(ah->rgbclip[i])) {
             for (int j = 0; j < i; j++) {
                 ah->func.avs_release_video_frame(src[j]);
             }
-            return NULL;
+            return -1;
         }
     }
-
-    VSFrameRef *dst = vsapi->newVideoFrame(ah->vs_vi.format, ah->vs_vi.width,
-                                           ah->vs_vi.height, NULL, core);
-
-    VSMap *props = vsapi->getFramePropsRW(dst);
-    vsapi->propSetInt(props, "_DurationNum", ah->avs_vi->fps_denominator, 0);
-    vsapi->propSetInt(props, "_DurationDen", ah->avs_vi->fps_numerator, 0);
 
     for (int i = 0; i < 3; i++) {
         ah->func.avs_bit_blt(ah->env,
@@ -415,37 +399,17 @@ avsr_get_frame_rgb(int n, int activation_reason, void **instance_data,
         ah->func.avs_release_video_frame(src[i]);
     }
 
-    return dst;
+    return 0;
 }
 
 
-static const VSFrameRef * __stdcall
-avsr_get_frame_yuv(int n, int activation_reason, void **instance_data,
-                   void **frame_data, VSFrameContext *frame_ctx, VSCore *core,
-                   const VSAPI *vsapi)
+static int __stdcall
+write_frame_yuv(avsr_hnd_t *ah, int n, VSFrameRef *dst, const VSAPI *vsapi)
 {
-    if (activation_reason != arInitial) {
-        return NULL;
-    }
-
-    avsr_hnd_t *ah = (avsr_hnd_t *)*instance_data;
-
-    int frame_number = n;
-    if (n >= ah->avs_vi->num_frames) {
-        frame_number = ah->avs_vi->num_frames - 1;
-    }
-
-    AVS_VideoFrame *src = ah->func.avs_get_frame(ah->clip, frame_number);
+    AVS_VideoFrame *src = ah->func.avs_get_frame(ah->clip, n);
     if (ah->func.avs_clip_get_error(ah->clip)) {
-        return NULL;
+        return -1;
     }
-
-    VSFrameRef *dst = vsapi->newVideoFrame(ah->vs_vi.format, ah->vs_vi.width,
-                                           ah->vs_vi.height, NULL, core);
-
-    VSMap *props = vsapi->getFramePropsRW(dst);
-    vsapi->propSetInt(props, "_DurationNum", ah->avs_vi->fps_denominator, 0);
-    vsapi->propSetInt(props, "_DurationDen", ah->avs_vi->fps_numerator, 0);
 
     const int plane[] = {AVS_PLANAR_Y, AVS_PLANAR_U, AVS_PLANAR_V};
     for (int i = 0, time = ah->vs_vi.format->numPlanes; i < time; i++) {
@@ -459,6 +423,39 @@ avsr_get_frame_yuv(int n, int activation_reason, void **instance_data,
     }
 
     ah->func.avs_release_video_frame(src);
+
+    return 0;
+}
+
+
+static const VSFrameRef * __stdcall
+avsr_get_frame(int n, int activation_reason, void **instance_data,
+               void **frame_data, VSFrameContext *frame_ctx, VSCore *core,
+               const VSAPI *vsapi)
+{
+    if (activation_reason != arInitial) {
+        return NULL;
+    }
+
+    avsr_hnd_t *ah = (avsr_hnd_t *)*instance_data;
+
+    int frame_number = n;
+    if (n >= ah->avs_vi->num_frames) {
+        frame_number = ah->avs_vi->num_frames - 1;
+    }
+
+    VSFrameRef *dst = vsapi->newVideoFrame(ah->vs_vi.format, ah->vs_vi.width,
+                                           ah->vs_vi.height, NULL, core);
+
+    VSMap *props = vsapi->getFramePropsRW(dst);
+    vsapi->propSetInt(props, "_DurationNum", ah->avs_vi->fps_denominator, 0);
+    vsapi->propSetInt(props, "_DurationDen", ah->avs_vi->fps_numerator, 0);
+
+    if (ah->write_frame(ah, frame_number, dst, vsapi)) {
+        vsapi->setFilterError("failed to get frame from avisynth.dll",
+                              frame_ctx);
+        return NULL;
+    }
 
     return dst;
 }
@@ -495,10 +492,12 @@ create_source(const VSMap *in, VSMap *out, void *user_data, VSCore *core,
         return;
     }
 
+    ah->write_frame =
+        avs_is_rgb(ah->avs_vi) ? write_frame_rgb : write_frame_yuv;
+
     const VSNodeRef *node = vsapi->createFilter(
-        in, out, mode, vs_init,
-        avs_is_rgb(ah->avs_vi) ? avsr_get_frame_rgb : avsr_get_frame_yuv,
-        vs_close, fmSerial, 0, ah, core);
+        in, out, mode, vs_init, avsr_get_frame, vs_close, fmSerial, 0, ah, core);
+
     vsapi->propSetNode(out, "clip", node, 0);
 }
 
