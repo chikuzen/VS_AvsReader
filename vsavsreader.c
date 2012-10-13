@@ -167,8 +167,8 @@ initialize_avisynth(avsr_hnd_t *ah, const char *input, const char *mode)
         return avs_void;
     }
 
-    AVS_Value res = ah->func.avs_invoke(
-        ah->env, mode, avs_new_value_string(input), NULL);
+    AVS_Value res = ah->func.avs_invoke(ah->env, mode,
+                                        avs_new_value_string(input), NULL);
     if (avs_is_error(res) || !avs_defined(res)) {
         fprintf(stderr, "avsr: failed to %s.\n", input);
         goto invalid;
@@ -463,32 +463,29 @@ avsr_get_frame(int n, int activation_reason, void **instance_data,
 
 static void __stdcall
 create_source(const VSMap *in, VSMap *out, void *user_data, VSCore *core,
-              const VSAPI *vsapi, const char *mode)
+              const VSAPI *vsapi)
 {
     int err;
-    char msg[256] = {0};
+    char msg_buff[256] = "avsr: ";
+    char *msg = msg_buff + strlen(msg_buff);
 
-    const VSVersion *vsver = vsapi->getVersion();
-    if (vsver->core < 9) {
-        vsapi->setError(out, "avsr: unsupported vapoursynth version was found");
-        return;
-    }
     int bitdepth = vsapi->propGetInt(in, "bitdepth", 0, &err);
     if (err) {
         bitdepth = 8;
     }
     if (bitdepth != 8 && bitdepth != 9 && bitdepth != 10 && bitdepth != 16) {
-        sprintf(msg, "%s: invalid bitdepth was specified", mode);
-        vsapi->setError(out, msg);
+        sprintf(msg, "invalid bitdepth was specified");
+        vsapi->setError(out, msg_buff);
         return;
     }
 
-    const char *arg = strcmp(mode, "Import") == 0 ? "script" : "lines";
-    const char *input = vsapi->propGetData(in, arg, 0, 0);
+    const char *mode = user_data ? "Import" : "Eval";
+    const char *input =
+        vsapi->propGetData(in, user_data ? "script" : "lines", 0, 0);
     avsr_hnd_t *ah = init_handler(input, bitdepth, mode, core, vsapi);
     if (!ah) {
-        sprintf(msg, "%s: failed to initialize avisynth", mode);
-        vsapi->setError(out, msg);
+        sprintf(msg, "failed to initialize avisynth");
+        vsapi->setError(out, msg_buff);
         return;
     }
 
@@ -502,22 +499,6 @@ create_source(const VSMap *in, VSMap *out, void *user_data, VSCore *core,
 }
 
 
-static void __stdcall
-create_import(const VSMap *in, VSMap *out, void *user_data, VSCore *core,
-              const VSAPI *vsapi)
-{
-    create_source(in, out, user_data, core, vsapi, "Import");
-}
-
-
-static void __stdcall
-create_eval(const VSMap *in, VSMap *out, void *user_data, VSCore *core,
-            const VSAPI *vsapi)
-{
-    create_source(in, out, user_data, core, vsapi, "Eval");
-}
-
-
 __declspec(dllexport) void __stdcall VapourSynthPluginInit(
     VSConfigPlugin f_config, VSRegisterFunction f_register, VSPlugin *plugin)
 {
@@ -525,7 +506,7 @@ __declspec(dllexport) void __stdcall VapourSynthPluginInit(
              "AviSynth Script Reader for VapourSynth", VAPOURSYNTH_API_VERSION,
              1, plugin);
     f_register("Import", "script:data;bitdepth:int:opt;",
-               create_import, NULL, plugin);
+               create_source, NULL, plugin);
     f_register("Eval", "lines:data;bitdepth:int:opt;",
-               create_eval, NULL, plugin);
+               create_source, (void *)1, plugin);
 }
