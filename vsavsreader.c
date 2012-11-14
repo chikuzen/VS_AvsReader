@@ -369,7 +369,7 @@ vs_init(VSMap *in, VSMap *out, void **instance_data, VSNode *node,
         VSCore *core, const VSAPI *vsapi)
 {
     avsr_hnd_t *ah = (avsr_hnd_t *)*instance_data;
-    vsapi->setVideoInfo(&ah->vs_vi, node);
+    vsapi->setVideoInfo(&ah->vs_vi, 1, node);
 }
 
 
@@ -448,8 +448,8 @@ avsr_get_frame(int n, int activation_reason, void **instance_data,
                                            ah->vs_vi.height, NULL, core);
 
     VSMap *props = vsapi->getFramePropsRW(dst);
-    vsapi->propSetInt(props, "_DurationNum", ah->avs_vi->fps_denominator, 0);
-    vsapi->propSetInt(props, "_DurationDen", ah->avs_vi->fps_numerator, 0);
+    vsapi->propSetInt(props, "_DurationNum", ah->avs_vi->fps_denominator, paReplace);
+    vsapi->propSetInt(props, "_DurationDen", ah->avs_vi->fps_numerator, paReplace);
 
     if (ah->write_frame(ah, frame_number, dst, vsapi)) {
         vsapi->setFilterError("failed to get frame from avisynth.dll",
@@ -492,10 +492,8 @@ create_source(const VSMap *in, VSMap *out, void *user_data, VSCore *core,
     ah->write_frame =
         avs_is_rgb(ah->avs_vi) ? write_frame_rgb : write_frame_yuv;
 
-    const VSNodeRef *node = vsapi->createFilter(
-        in, out, mode, vs_init, avsr_get_frame, vs_close, fmSerial, 0, ah, core);
-
-    vsapi->propSetNode(out, "clip", node, 0);
+    vsapi->createFilter(in, out, mode, vs_init, avsr_get_frame, vs_close,
+                        fmSerial, 0, ah, core);
 }
 
 
