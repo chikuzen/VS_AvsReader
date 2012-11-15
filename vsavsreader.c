@@ -40,9 +40,10 @@ typedef struct avsr_handle {
     int avs_version;
     int bitdepth;
     AVS_Clip *clip;
-    AVS_Clip *rgbclip[3];
+    AVS_Clip *rgbaclip[4];
+    int three_or_four;
     int (__stdcall *write_frame)(struct avsr_handle *, int, VSFrameRef *,
-                                 const VSAPI *);
+                                 const VSAPI *, VSCore *);
     AVS_ScriptEnvironment *env;
     const AVS_VideoInfo *avs_vi;
     HMODULE library;
@@ -135,15 +136,15 @@ invoke_avs_filter(avsr_hnd_t *ah, AVS_Value before, const char *filter)
 }
 
 
-static void __stdcall take_y8_clips_from_bgr(avsr_hnd_t *ah, AVS_Value res)
+static void __stdcall take_y8_clips_from_packed_rgb(avsr_hnd_t *ah, AVS_Value res)
 {
-    const char *filter[] = {"ShowRed", "ShowGreen", "ShowBlue"};
+    const char *filter[] = {"ShowRed", "ShowGreen", "ShowBlue", "ShowAlpha"};
     AVS_Value args[] = {res, avs_new_value_string("Y8")};
     AVS_Value array = avs_new_value_array(args, 2);
 
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0, num = ah->three_or_four; i < num; i++) {
         AVS_Value tmp = ah->func.avs_invoke(ah->env, filter[i], array, NULL);
-        ah->rgbclip[i] = ah->func.avs_take_clip(tmp, ah->env);
+        ah->rgbaclip[i] = ah->func.avs_take_clip(tmp, ah->env);
         ah->func.avs_release_value(tmp);
     }
 }
@@ -204,7 +205,8 @@ initialize_avisynth(avsr_hnd_t *ah, const char *input, const char *mode)
     }
 
     if (avs_is_rgb(ah->avs_vi)) {
-        take_y8_clips_from_bgr(ah, res);
+        ah->three_or_four = avs_bits_per_pixel(ah->avs_vi) >> 3;
+        take_y8_clips_from_packed_rgb(ah, res);
     }
 
     if (ah->bitdepth == 8) {
@@ -300,10 +302,10 @@ static void __stdcall close_avisynth_dll(avsr_hnd_t *ah)
         ah->func.avs_release_clip(ah->clip);
         ah->clip = NULL;
     }
-    for (int i = 0; i < 3; i++) {
-        if (ah->rgbclip[i]) {
-            ah->func.avs_release_clip(ah->rgbclip[i]);
-            ah->rgbclip[i] = NULL;
+    for (int i = 0; i < ah->three_or_four; i++) {
+        if (ah->rgbaclip[i]) {
+            ah->func.avs_release_clip(ah->rgbaclip[i]);
+            ah->rgbaclip[i] = NULL;
         }
     }
     if (ah->func.avs_delete_script_environment) {
@@ -374,12 +376,13 @@ vs_init(VSMap *in, VSMap *out, void **instance_data, VSNode *node,
 
 
 static int __stdcall
-write_frame_rgb(avsr_hnd_t *ah, int n, VSFrameRef *dst, const VSAPI *vsapi)
+write_frame_rgb(avsr_hnd_t *ah, int n, VSFrameRef *dst, const VSAPI *vsapi,
+                VSCore *core)
 {
-    AVS_VideoFrame *src[3];
-    for (int i = 0; i < 3; i++) {
-        src[i] = ah->func.avs_get_frame(ah->rgbclip[i], n);
-        if (ah->func.avs_clip_get_error(ah->rgbclip[i])) {
+    AVS_VideoFrame *src[4];
+    for (int i = 0, num = ah->three_or_four; i < num; i++) {
+        src[i] = ah->func.avs_get_frame(ah->rgbaclip[i], n);
+        if (ah->func.avs_clip_get_error(ah->rgbaclip[i])) {
             for (int j = 0; j < i; j++) {
                 ah->func.avs_release_video_frame(src[j]);
             }
@@ -399,12 +402,33 @@ write_frame_rgb(avsr_hnd_t *ah, int n, VSFrameRef *dst, const VSAPI *vsapi)
         ah->func.avs_release_video_frame(src[i]);
     }
 
+    if (ah->three_or_four < 4) {
+        return 0;
+    }
+
+    VSFrameRef *alpha = vsapi->newVideoFrame(
+                            vsapi->getFormatPreset(pfGray8, core),
+                            ah->vs_vi.width, ah->vs_vi.height, NULL, core);
+
+    ah->func.avs_bit_blt(ah->env,
+                         vsapi->getWritePtr(alpha, 0),
+                         vsapi->getStride(alpha, 0),
+                         avs_get_read_ptr(src[3]),
+                         avs_get_pitch(src[3]),
+                         avs_get_row_size(src[3]),
+                         avs_get_height(src[3]));
+    ah->func.avs_release_video_frame(src[3]);
+
+    vsapi->propSetFrame(vsapi->getFramePropsRW(dst), "_Alpha", alpha, paReplace);
+    vsapi->freeFrame(alpha);
+
     return 0;
 }
 
 
 static int __stdcall
-write_frame_yuv(avsr_hnd_t *ah, int n, VSFrameRef *dst, const VSAPI *vsapi)
+write_frame_yuv(avsr_hnd_t *ah, int n, VSFrameRef *dst, const VSAPI *vsapi,
+                VSCore *core)
 {
     AVS_VideoFrame *src = ah->func.avs_get_frame(ah->clip, n);
     if (ah->func.avs_clip_get_error(ah->clip)) {
@@ -451,7 +475,7 @@ avsr_get_frame(int n, int activation_reason, void **instance_data,
     vsapi->propSetInt(props, "_DurationNum", ah->avs_vi->fps_denominator, paReplace);
     vsapi->propSetInt(props, "_DurationDen", ah->avs_vi->fps_numerator, paReplace);
 
-    if (ah->write_frame(ah, frame_number, dst, vsapi)) {
+    if (ah->write_frame(ah, frame_number, dst, vsapi, core)) {
         vsapi->setFilterError("failed to get frame from avisynth.dll",
                               frame_ctx);
         return NULL;
@@ -479,9 +503,9 @@ create_source(const VSMap *in, VSMap *out, void *user_data, VSCore *core,
         return;
     }
 
-    const char *mode = user_data ? "Import" : "Eval";
+    const char *mode = user_data ? "Eval" : "Import";
     const char *input =
-        vsapi->propGetData(in, user_data ? "script" : "lines", 0, 0);
+        vsapi->propGetData(in, user_data ? "lines" : "script", 0, 0);
     avsr_hnd_t *ah = init_handler(input, bitdepth, mode, core, vsapi);
     if (!ah) {
         sprintf(msg, "failed to initialize avisynth");

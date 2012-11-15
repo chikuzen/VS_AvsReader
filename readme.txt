@@ -5,7 +5,7 @@ vsavsreader.dll -- AviSynth Script Reader plugin for VapourSynth
 
 
 requirement:
-VapourSynth r9 or later
+VapourSynth r15 or later
 avisynth2.6alpha3 or later
 sse2 capable cpu
 
@@ -99,4 +99,10 @@ Vapoursynth script
 ... Dither_convey_yuv4xxp16_on_yvxx()
 ... '''
 >>> video = core.avsr.Eval(lines=lines, bitdepth=16)
+
+*****************************************************************************
+ note
+*****************************************************************************
+When input pixel type of avs is RGB32, alpha channel data will be stored in
+the "_Alpha" prop of each frames.
 
