@@ -103,6 +103,5 @@ Vapoursynth script
 *****************************************************************************
  note
 *****************************************************************************
-When input pixel type of avs is RGB32, alpha channel data will be stored in
-the "_Alpha" prop of each frames.
-
+When input pixel type of avs is RGB32, this filter returns a list which has two clips.
+clip[0] is base clip. clip[1] is alpha clip.

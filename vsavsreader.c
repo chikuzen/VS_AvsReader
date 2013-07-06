@@ -29,9 +29,11 @@
 #define AVSC_NO_DECLSPEC
 #undef EXTERN_C
 #include "avisynth_c.h"
-#define AVS_INTERFACE_25 2
+#define AVS_INTERFACE_26 5
 
 #include "VapourSynth.h"
+
+#define VSAVSREADER_VERSION "0.1.0"
 
 
 #define AVSC_DECLARE_FUNC(name) name##_func name
@@ -105,6 +107,29 @@ fail:
 #undef LOAD_AVS_FUNC
 
 
+static char *convert_utf8_to_ansi(const char *utf8)
+{
+    int length = MultiByteToWideChar(CP_UTF8, 0, utf8, -1, NULL, 0);
+    wchar_t *wchar = (wchar_t *)malloc(sizeof(wchar_t) * length);
+    if (!wchar) {
+        return NULL;
+    }
+    MultiByteToWideChar(CP_UTF8, 0, utf8, -1, wchar, length);
+
+    length = WideCharToMultiByte(CP_THREAD_ACP, 0, wchar, -1, NULL, 0, 0, 0);
+    char *ansi = (char *)malloc(length);
+    if (!ansi) {
+        free(wchar);
+        return NULL;
+    }
+    WideCharToMultiByte(CP_THREAD_ACP, 0, wchar, -1, ansi, length, 0, 0);
+
+    free(wchar);
+
+    return ansi;
+}
+
+
 static int __stdcall get_avisynth_version(avsr_hnd_t *ah)
 {
     if (!ah->func.avs_function_exists(ah->env, "VersionNumber")) {
@@ -170,15 +195,19 @@ initialize_avisynth(avsr_hnd_t *ah, const char *input, const char *mode,
 {
     RET_IF_ERROR(load_avisynth_dll(ah), "failed to load avisynth.dll");
 
-    ah->env = ah->func.avs_create_script_environment(AVS_INTERFACE_25);
+    ah->env = ah->func.avs_create_script_environment(AVS_INTERFACE_26);
     RET_IF_ERROR(ah->func.avs_get_error && ah->func.avs_get_error(ah->env),
                  "avisynth environment has some trouble");
 
     RET_IF_ERROR(get_avisynth_version(ah) < 260,
                  "unsupported version of avisynth.dll was found.\n");
 
+    char *input_ansi = convert_utf8_to_ansi(input);
+    RET_IF_ERROR(!input_ansi, "failed to convert UTF-8 string to ANSI string");
+
     AVS_Value res = ah->func.avs_invoke(ah->env, mode,
-                                        avs_new_value_string(input), NULL);
+                                        avs_new_value_string(input_ansi), NULL);
+    free(input_ansi);
     INVALID_IF_ERROR(avs_is_error(res) || !avs_defined(res),
                      "failed to invoke %s", input);
 
@@ -553,8 +582,8 @@ __declspec(dllexport) void __stdcall VapourSynthPluginInit(
     VSConfigPlugin f_config, VSRegisterFunction f_register, VSPlugin *plugin)
 {
     f_config("chikuzen.does.not.have.his.own.domain.avsr", "avsr",
-             "AviSynth Script Reader for VapourSynth", VAPOURSYNTH_API_VERSION,
-             1, plugin);
+             "AviSynth Script Reader for VapourSynth v" VSAVSREADER_VERSION,
+             VAPOURSYNTH_API_VERSION, 1, plugin);
     f_register("Import", "script:data;bitdepth:int:opt;alpha:int:opt;",
                create_source, (void *)"Import", plugin);
     f_register("Eval", "lines:data;bitdepth:int:opt;alpha:int:opt;",
