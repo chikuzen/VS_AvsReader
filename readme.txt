@@ -5,8 +5,8 @@ vsavsreader.dll -- AviSynth Script Reader plugin for VapourSynth
 
 
 requirement:
-VapourSynth r15 or later
-avisynth2.6alpha3 or later
+VapourSynth r30 or later
+Avisynth2.6 / Avisynth+
 sse2 capable cpu
 
 
@@ -20,7 +20,7 @@ https://github.com/chikuzen/VS_AvsReader
 
 # Preparation
 >>> import vapoursynth as vs
->>> core = vs.Core()
+>>> core = vs.get_core()
 >>> core.std.LoadPlugin('vsavsreader.dll')
 
 # Case 'Import'
@@ -56,7 +56,7 @@ Use VsAvsReader's Import function to load external Avisynth script.
 Vapoursynth script
 # Core
 >>> import vapoursynth as vs
->>> core = vs.Core(accept_lowercase=True)
+>>> core = vs.get_core(accept_lowercase=True)
 
 # Import plugins
 >>> core.std.LoadPlugin('C:/vsavsreader.dll')
@@ -83,7 +83,7 @@ Vapoursynth script
 
 # Core
 >>> import vapoursynth as vs
->>> core = vs.Core(accept_lowercase=True)
+>>> core = vs.get_core(accept_lowercase=True)
 
 # Import plugins
 >>> core.std.LoadPlugin('C:/vsavsreader.dll')

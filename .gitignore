@@ -4,6 +4,7 @@
 *.avi
 *.avs
 *.avsi
+*.vpy
 *.d
 *.d2v
 *.diff
@@ -39,3 +40,13 @@
 *.y4m
 *.yuv
 *~
+*.sln
+*.filters
+*.user
+*.db
+*.opendb
+Release/*
+Debug/*
+x64/*
+archive/*
+.vs/*
