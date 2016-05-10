@@ -7,7 +7,7 @@ vsavsreader.dll -- AviSynth Script Reader plugin for VapourSynth
 requirement:
 VapourSynth r30 or later
 Avisynth2.6 / Avisynth+
-sse2 capable cpu
+Microsoft Visual C++ 2015 Redistributable Packages
 
 
 sourcecode:
